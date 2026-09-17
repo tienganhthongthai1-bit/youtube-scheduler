@@ -1,0 +1,44 @@
+name: Upload Video to YouTube
+
+on:
+  schedule:
+    # Chạy mỗi ngày lúc 00:00 UTC = 07:00 ICT
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      video_index:
+        description: 'Video index to upload (0 = first, 1 = second, ...)'
+        required: false
+        default: ''
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Upload video to YouTube
+        env:
+          TOKEN_JSON:    ${{ secrets.TOKEN_JSON }}
+          START_DATE:    ${{ vars.START_DATE || '2026-05-20' }}
+          PUBLISH_TIME:  ${{ vars.PUBLISH_TIME || '07:00' }}
+          VIDEO_INDEX:   ${{ github.event.inputs.video_index }}
+        run: python youtube_uploader.py
+
+      - name: Commit uploaded files back
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add videos/uploaded/ videos/
+          git diff --staged --quiet || git commit -m "chore: mark uploaded videos [skip ci]"
+          git push
